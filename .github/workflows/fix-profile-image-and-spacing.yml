@@ -1,0 +1,78 @@
+name: Fix profile image and hero spacing
+
+on:
+  push:
+    paths:
+      - ".profile-fix/READY"
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create browser-safe JPEG and tighten layout
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64
+          import re
+          import shutil
+
+          root = Path('.')
+          svg_path = root / 'assets' / 'zachary-carver-headshot-hq.svg'
+          jpg_path = root / 'assets' / 'zachary-carver-headshot.jpg'
+          index_path = root / 'index.html'
+          css_path = root / 'assets' / 'profile-layout.css'
+
+          svg = svg_path.read_text(encoding='utf-8')
+          match = re.search(r'href="data:image/jpeg;base64,([^"]+)"', svg)
+          if not match:
+              raise RuntimeError('Embedded JPEG data was not found in the existing headshot SVG.')
+
+          image_bytes = base64.b64decode(match.group(1))
+          if not image_bytes.startswith(b'\xff\xd8') or len(image_bytes) < 50000:
+              raise RuntimeError('Decoded headshot is not a valid high-quality JPEG.')
+          jpg_path.write_bytes(image_bytes)
+
+          index = index_path.read_text(encoding='utf-8')
+          index = index.replace(
+              'assets/zachary-carver-headshot-hq.svg',
+              'assets/zachary-carver-headshot.jpg?v=20260707b'
+          )
+          index_path.write_text(index, encoding='utf-8')
+
+          css = css_path.read_text(encoding='utf-8')
+          marker = '/* PROFILE IMAGE AND HERO SPACING FIX */'
+          if marker not in css:
+              css += '''\n\n/* PROFILE IMAGE AND HERO SPACING FIX */
+.hero{min-height:auto;padding-block:64px 44px}
+.about-section{padding-top:54px}
+.avatar-shell{width:min(320px,78vw)}
+.profile-avatar{object-position:center 18%}
+@media(max-width:900px){.hero{padding-block:56px 36px}.about-section{padding-top:48px}}
+@media(max-width:620px){.hero{padding-block:46px 28px}.about-section{padding-top:42px}.avatar-shell{width:min(270px,82vw)}}
+'''
+          css_path.write_text(css, encoding='utf-8')
+
+          shutil.rmtree(root / '.profile-fix', ignore_errors=True)
+          workflow = root / '.github' / 'workflows' / 'fix-profile-image-and-spacing.yml'
+          if workflow.exists():
+              workflow.unlink()
+
+          print(f'Wrote {jpg_path} ({jpg_path.stat().st_size:,} bytes)')
+          PY
+
+      - name: Commit and push fix
+        run: |
+          git config user.name "Zachary Carver"
+          git config user.email "285810373+CSICleanSceneInvestigators@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix headshot rendering and hero spacing"
+          git push
