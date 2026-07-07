@@ -5,7 +5,7 @@ module.exports = async function headshotHandler(request, response) {
   try {
     const upstream = await fetch(SOURCE_URL);
     if (!upstream.ok) {
-      throw new Error(`Headshot source returned ${upstream.status}`);
+      throw new Error('Approved headshot source could not be loaded.');
     }
 
     const svg = await upstream.text();
@@ -15,16 +15,13 @@ module.exports = async function headshotHandler(request, response) {
     }
 
     const jpeg = Buffer.from(match[1], 'base64');
-    if (jpeg.length < 100000 || jpeg[0] !== 0xff || jpeg[1] !== 0xd8) {
-      throw new Error('Recovered headshot data is not a valid high-resolution JPEG.');
+    if (jpeg[0] !== 0xff || jpeg[1] !== 0xd8) {
+      throw new Error('Recovered headshot data is not a JPEG.');
     }
 
     response.setHeader('Content-Type', 'image/jpeg');
     response.setHeader('Content-Length', String(jpeg.length));
-    response.setHeader(
-      'Cache-Control',
-      'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable'
-    );
+    response.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
     response.status(200).send(jpeg);
   } catch (error) {
     console.error('Unable to serve portfolio headshot:', error);
