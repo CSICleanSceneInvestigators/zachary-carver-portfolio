@@ -1,1 +1,0 @@
-Apply browser-safe headshot and compact hero spacing.
