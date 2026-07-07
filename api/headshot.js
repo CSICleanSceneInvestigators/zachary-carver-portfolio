@@ -11,6 +11,7 @@ const compressedMiddleReversed = [
   require('./headshot-data/middle-c')
 ].join('');
 
+const leadingBytes = Buffer.from(leadingHex, 'hex');
 const middleBytes = zlib.inflateSync(
   Buffer.from(compressedMiddleReversed.split('').reverse().join(''), 'base64')
 );
@@ -19,12 +20,9 @@ const trailingHex = [
   require('./headshot-data/part-03'),
   require('./headshot-data/part-04').split('').reverse().join('')
 ].join('');
+const trailingBytes = Buffer.from(trailingHex, 'hex');
 
-const jpeg = Buffer.concat([
-  Buffer.from(leadingHex, 'hex'),
-  middleBytes,
-  Buffer.from(trailingHex, 'hex')
-]);
+const jpeg = Buffer.concat([leadingBytes, middleBytes, trailingBytes]);
 
 module.exports = function headshotHandler(request, response) {
   try {
@@ -36,7 +34,9 @@ module.exports = function headshotHandler(request, response) {
       jpeg[jpeg.length - 1] === 0xd9;
 
     if (!isValidJpeg) {
-      throw new Error(`Invalid headshot image (${jpeg.length} bytes).`);
+      throw new Error(
+        `Invalid headshot image (${jpeg.length} bytes; lead=${leadingBytes.length}; middle=${middleBytes.length}; trail=${trailingBytes.length}; end=${jpeg.subarray(-8).toString('hex')}).`
+      );
     }
 
     response.setHeader('Content-Type', 'image/jpeg');
