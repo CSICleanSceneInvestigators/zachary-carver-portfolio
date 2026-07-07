@@ -1,8 +1,16 @@
 const zlib = require('zlib');
 
+function normalizeHexPart(value, expectedLength) {
+  const clean = value.replace(/[^0-9a-f]/gi, '');
+  if (clean.length < expectedLength) {
+    throw new Error(`Headshot source chunk is too short (${clean.length}/${expectedLength}).`);
+  }
+  return clean.slice(0, expectedLength);
+}
+
 const leadingHex = [
-  require('./headshot-data/part-00'),
-  require('./headshot-data/part-01')
+  normalizeHexPart(require('./headshot-data/part-00'), 15000),
+  normalizeHexPart(require('./headshot-data/part-01'), 15000)
 ].join('');
 
 const compressedMiddleReversed = [
@@ -17,8 +25,8 @@ const middleBytes = zlib.inflateSync(
 );
 
 const trailingHex = [
-  require('./headshot-data/part-03'),
-  require('./headshot-data/part-04').split('').reverse().join('')
+  normalizeHexPart(require('./headshot-data/part-03'), 15000),
+  normalizeHexPart(require('./headshot-data/part-04').split('').reverse().join(''), 12316)
 ].join('');
 const trailingBytes = Buffer.from(trailingHex, 'hex');
 
@@ -34,9 +42,7 @@ module.exports = function headshotHandler(request, response) {
       jpeg[jpeg.length - 1] === 0xd9;
 
     if (!isValidJpeg) {
-      throw new Error(
-        `Invalid headshot image (${jpeg.length} bytes; lead=${leadingBytes.length}; middle=${middleBytes.length}; trail=${trailingBytes.length}; end=${jpeg.subarray(-8).toString('hex')}).`
-      );
+      throw new Error(`Invalid headshot image (${jpeg.length} bytes).`);
     }
 
     response.setHeader('Content-Type', 'image/jpeg');
