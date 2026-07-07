@@ -3,7 +3,7 @@ name: Fix profile image and hero spacing
 on:
   push:
     paths:
-      - ".profile-fix/READY"
+      - ".profile-fix/READY.txt"
 
 permissions:
   contents: write
