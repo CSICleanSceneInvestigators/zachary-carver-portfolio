@@ -12,27 +12,42 @@ jobs:
   install-headshot:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Check out repository history
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Rebuild JPG and update portfolio
+      - name: Restore high-resolution JPG and update portfolio
         shell: bash
         run: |
           set -euo pipefail
-          cat .image-upload/chunk-* | base64 --decode > assets/zachary-carver-headshot-hq.jpg
-          test -s assets/zachary-carver-headshot-hq.jpg
+          git show 7028d3792ca76a5d2cce3463fb1f7e6313da753d:assets/zachary-carver-headshot-hq.svg > /tmp/zachary-headshot.svg
           python - <<'PY'
+          import base64
+          import re
           from pathlib import Path
 
-          path = Path('index.html')
-          text = path.read_text(encoding='utf-8')
+          svg = Path('/tmp/zachary-headshot.svg').read_text(encoding='utf-8')
+          match = re.search(r'data:image/jpeg;base64,([^"\s]+)', svg)
+          if not match:
+              raise SystemExit('The high-resolution JPEG data was not found in the approved source asset.')
+
+          image = base64.b64decode(match.group(1), validate=True)
+          if not image.startswith(b'\xff\xd8') or not image.endswith(b'\xff\xd9'):
+              raise SystemExit('The recovered asset is not a valid JPEG.')
+
+          image_path = Path('assets/zachary-carver-headshot-hq.jpg')
+          image_path.write_bytes(image)
+          if image_path.stat().st_size < 100_000:
+              raise SystemExit('The recovered JPEG is unexpectedly small.')
+
+          html_path = Path('index.html')
+          html = html_path.read_text(encoding='utf-8')
           old = '<img src="assets/zachary-carver-headshot-hq.svg" alt="Professional headshot of Zachary Carver" class="profile-avatar">'
-          new = '<img src="assets/zachary-carver-headshot-hq.jpg" alt="Professional headshot of Zachary Carver" class="profile-avatar" width="512" height="512" decoding="async">'
-          if old not in text:
+          new = '<img src="assets/zachary-carver-headshot-hq.jpg" alt="Professional headshot of Zachary Carver" class="profile-avatar" width="1200" height="800" decoding="async">'
+          if old not in html:
               raise SystemExit('Expected headshot markup was not found.')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          html_path.write_text(html.replace(old, new, 1), encoding='utf-8')
           PY
           rm -rf .image-upload
 
