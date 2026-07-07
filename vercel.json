@@ -1,6 +1,12 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/assets/zachary-carver-headshot-hq.jpg",
+      "destination": "/api/headshot"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
