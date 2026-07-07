@@ -3,7 +3,7 @@ name: Install portfolio headshot
 on:
   push:
     paths:
-      - '.image-upload/READY'
+      - '.image-upload/chunk-01'
 
 permissions:
   contents: write
