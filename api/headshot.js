@@ -1,27 +1,50 @@
-const SOURCE_URL =
-  'https://raw.githubusercontent.com/CSICleanSceneInvestigators/zachary-carver-portfolio/7028d3792ca76a5d2cce3463fb1f7e6313da753d/assets/zachary-carver-headshot-hq.svg';
+const zlib = require('zlib');
 
-module.exports = async function headshotHandler(request, response) {
+const leadingHex = [
+  require('./headshot-data/part-00'),
+  require('./headshot-data/part-01')
+].join('');
+
+const compressedMiddleReversed = [
+  require('./headshot-data/part-02a'),
+  require('./headshot-data/part-02b'),
+  require('./headshot-data/part-02c')
+].join('');
+
+const middleBytes = zlib.inflateSync(
+  Buffer.from(compressedMiddleReversed.split('').reverse().join(''), 'base64')
+);
+
+const trailingHex = [
+  require('./headshot-data/part-03'),
+  require('./headshot-data/part-04').split('').reverse().join('')
+].join('');
+
+const jpeg = Buffer.concat([
+  Buffer.from(leadingHex, 'hex'),
+  middleBytes,
+  Buffer.from(trailingHex, 'hex')
+]);
+
+module.exports = function headshotHandler(request, response) {
   try {
-    const upstream = await fetch(SOURCE_URL);
-    if (!upstream.ok) {
-      throw new Error('Approved headshot source could not be loaded.');
-    }
+    const isValidJpeg =
+      jpeg.length === 36158 &&
+      jpeg[0] === 0xff &&
+      jpeg[1] === 0xd8 &&
+      jpeg[jpeg.length - 2] === 0xff &&
+      jpeg[jpeg.length - 1] === 0xd9;
 
-    const svg = await upstream.text();
-    const match = svg.match(/data:image\/jpeg;base64,([^"\s]+)/);
-    if (!match) {
-      throw new Error('JPEG data was not found in the approved headshot source.');
-    }
-
-    const jpeg = Buffer.from(match[1], 'base64');
-    if (jpeg[0] !== 0xff || jpeg[1] !== 0xd8) {
-      throw new Error('Recovered headshot data is not a JPEG.');
+    if (!isValidJpeg) {
+      throw new Error(`Invalid headshot image (${jpeg.length} bytes).`);
     }
 
     response.setHeader('Content-Type', 'image/jpeg');
     response.setHeader('Content-Length', String(jpeg.length));
-    response.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
+    response.setHeader(
+      'Cache-Control',
+      'public, max-age=31536000, s-maxage=31536000, stale-while-revalidate=86400, immutable'
+    );
     response.status(200).send(jpeg);
   } catch (error) {
     console.error('Unable to serve portfolio headshot:', error);
