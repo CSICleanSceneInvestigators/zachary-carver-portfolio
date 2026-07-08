@@ -1,0 +1,18 @@
+{
+  "artifacts": [],
+  "caches": [],
+  "errors": {
+    "artifacts": [],
+    "caches": [],
+    "packages": [
+      {
+        "message": "{\"message\":\"Invalid argument.\",\"documentation_url\":\"https://docs.github.com/rest/packages/packages#list-packages-for-a-user\",\"status\":\"400\"}",
+        "package_type": "container",
+        "status": 400
+      }
+    ]
+  },
+  "generated_at": "2026-07-08T22:12:53.180639+00:00",
+  "packages_visible_to_repository_token": [],
+  "repository": "CSICleanSceneInvestigators/zachary-carver-portfolio"
+}
